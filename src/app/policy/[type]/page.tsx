@@ -128,7 +128,7 @@ const POLICY_CONTENT: Record<string, { title: string; content: string }> = {
 전화번호 : 062-671-8650
 이메일 : ceo@aimcoltd.com
 
-개인정보관리책임자 성명 : 최운창
+개인정보관리책임자 성명 : 정지윤
 전화번호 : 062-671-8650
 이메일 : ceo@aimcoltd.com
 
@@ -511,7 +511,7 @@ export default async function PolicyPage({ params }: PolicyPageProps) {
                 청소년 보호 관리 책임자
               </h3>
               <div className="grid grid-cols-2 gap-y-2 text-sm text-gray-600">
-                <span>이름 : 최운창</span>
+                <span>이름 : 정지윤</span>
                 <span>소속 : 보도제작본부</span>
                 <span>전화 : 062-671-8650</span>
                 <span>직위 : PD</span>
@@ -525,7 +525,7 @@ export default async function PolicyPage({ params }: PolicyPageProps) {
                 청소년 보호 관리 담당자
               </h3>
               <div className="grid grid-cols-2 gap-y-2 text-sm text-gray-600">
-                <span>이름 : 최운창</span>
+                <span>이름 : 정지윤</span>
                 <span>소속 : 보도제작본부</span>
                 <span>전화 : 062-671-8650</span>
                 <span>직위 : PD</span>

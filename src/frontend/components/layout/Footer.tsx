@@ -51,13 +51,13 @@ export default function Footer() {
           <p>
             신문사업 등록번호 창간 준비 중&nbsp;
             <span className="text-gray-300">|</span>&nbsp;
-            발행인 최운창&nbsp;
+            발행인 정지윤&nbsp;
             <span className="text-gray-300">|</span>&nbsp;
-            편집인 최운창&nbsp;
+            편집인 정지윤&nbsp;
             <span className="text-gray-300">|</span>&nbsp;
-            개인정보관리책임자 최운창&nbsp;
+            개인정보관리책임자 정지윤&nbsp;
             <span className="text-gray-300">|</span>&nbsp;
-            청소년보호책임자 최운창
+            청소년보호책임자 정지윤
           </p>
           <p>
             발행 광주광역시 광산구 풍영로189, 2층&nbsp;
