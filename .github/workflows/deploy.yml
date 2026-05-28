@@ -18,10 +18,9 @@ jobs:
           key: ${{ secrets.EC2_KEY }}
           port: 22
           script: |
-            cd /home/ubuntu/iclmag/iclmag_hyo
+            cd /home/ubuntu/iclmag_j
             git pull origin main
             npm install --production=false
-            npx prisma db push
             npm run build
-            pm2 restart iclmag
+            pm2 restart iclmag-j
             echo "✅ 배포 완료"
