@@ -126,11 +126,11 @@ const POLICY_CONTENT: Record<string, { title: string; content: string }> = {
 
 고객서비스담당 부서 : 보도제작본부
 전화번호 : 062-671-8650
-이메일 : ceo@aimcoltd.com
+이메일 : jjy@aimcoltd.com
 
 개인정보관리책임자 성명 : 정지윤
 전화번호 : 062-671-8650
-이메일 : ceo@aimcoltd.com
+이메일 : jjy@aimcoltd.com
 
 귀하께서는 회사의 서비스를 이용하시며 발생하는 모든 개인정보보호 관련 민원을 개인정보관리책임자 혹은 담당부서로 신고하실 수 있습니다. 회사는 이용자들의 신고사항에 대해 신속하게 충분한 답변을 드릴 것입니다.
 
@@ -515,7 +515,7 @@ export default async function PolicyPage({ params }: PolicyPageProps) {
                 <span>소속 : 보도제작본부</span>
                 <span>전화 : 062-671-8650</span>
                 <span>직위 : PD</span>
-                <span className="col-span-2">메일 : <a href="mailto:ceo@aimcoltd.com" className="text-blue-500 hover:underline">ceo@aimcoltd.com</a></span>
+                <span className="col-span-2">메일 : <a href="mailto:jjy@aimcoltd.com" className="text-blue-500 hover:underline">jjy@aimcoltd.com</a></span>
               </div>
             </div>
 
@@ -529,7 +529,7 @@ export default async function PolicyPage({ params }: PolicyPageProps) {
                 <span>소속 : 보도제작본부</span>
                 <span>전화 : 062-671-8650</span>
                 <span>직위 : PD</span>
-                <span className="col-span-2">메일 : <a href="mailto:ceo@aimcoltd.com" className="text-blue-500 hover:underline">ceo@aimcoltd.com</a></span>
+                <span className="col-span-2">메일 : <a href="mailto:jjy@aimcoltd.com" className="text-blue-500 hover:underline">jjy@aimcoltd.com</a></span>
               </div>
             </div>
           </div>
