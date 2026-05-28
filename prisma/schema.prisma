@@ -1,0 +1,115 @@
+// Prisma 스키마 파일
+// MySQL 데이터베이스와 연결하여 User, Article 테이블을 관리
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ====================================
+// 사용자 역할 (권한 구분)
+// ====================================
+enum Role {
+  USER    // 일반 회원
+  WRITER  // 기자/작성자
+  ADMIN   // 관리자
+}
+
+// ====================================
+// 기사 카테고리
+// ====================================
+enum Category {
+  POLITICS  // 정치
+  ECONOMY   // 경제
+  SOCIETY   // 사회
+  CULTURE   // 생활/문화
+  TECH      // IT/과학
+  WORLD     // 세계
+}
+
+// ====================================
+// 기사 상태
+// ====================================
+enum Status {
+  DRAFT      // 임시저장
+  PUBLISHED  // 발행
+}
+
+// ====================================
+// 사용자 테이블
+// ====================================
+model User {
+  id            Int       @id @default(autoincrement())
+  email         String    @unique              // 이메일 (로그인 ID)
+  password      String                         // bcrypt로 해시된 비밀번호
+  name          String                         // 표시 이름
+  role          Role      @default(USER)       // 권한 (기본: 일반 회원)
+  emailVerified Boolean   @default(false)      // 이메일 인증 여부
+  createdAt     DateTime  @default(now())      // 가입일
+  updatedAt     DateTime  @updatedAt           // 수정일
+
+  // 작성한 기사들
+  articles      Article[]
+  // 이메일 인증 토큰들
+  verificationTokens VerificationToken[]
+  // 비밀번호 재설정 토큰들
+  passwordResetTokens PasswordResetToken[]
+
+  @@map("users")
+}
+
+// ====================================
+// 이메일 인증 토큰 테이블
+// 회원가입 시 발급, 인증 완료 후 삭제
+// ====================================
+model VerificationToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique            // 랜덤 UUID 토큰
+  userId    Int                         // 대상 사용자
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime                    // 만료 시각 (발급 후 24시간)
+  createdAt DateTime @default(now())
+
+  @@map("verification_tokens")
+}
+
+// ====================================
+// 비밀번호 재설정 토큰 테이블
+// ====================================
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique            // 랜덤 UUID 토큰
+  userId    Int                         // 대상 사용자
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime                    // 만료 시각 (발급 후 30분)
+  createdAt DateTime @default(now())
+
+  @@map("password_reset_tokens")
+}
+
+// ====================================
+// 기사 테이블
+// ====================================
+model Article {
+  id          Int       @id @default(autoincrement())
+  title       String    @db.VarChar(500)   // 기사 제목
+  content     String    @db.LongText       // 기사 본문
+  summary     String?   @db.Text           // 요약 (선택, 목록에 표시)
+  thumbnail   String?                      // 썸네일 이미지 경로
+  category    Category                     // 카테고리
+  status      Status    @default(DRAFT)    // 발행 상태
+  views       Int       @default(0)        // 조회수
+
+  // 작성자 관계
+  authorId    Int
+  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now())    // 작성일
+  updatedAt   DateTime  @updatedAt         // 수정일
+
+  @@map("articles")
+}

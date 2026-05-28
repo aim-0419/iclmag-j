@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/register -H \"Content-Type: application/json\" -d \"{\\\\\"email\\\\\":\\\\\"aim0419@iclmag.com\\\\\",\\\\\"password\\\\\":\\\\\"aim6401!\\\\\",\\\\\"name\\\\\":\\\\\"관리자\\\\\"}\")",
+      "Bash(npx prisma *)",
+      "Bash(powershell -Command \"\\(Get-Content 'src/app/policy/[type]/page.tsx' -Raw\\) -replace '정지윤', '최운창' -replace '061-392-9782', '062-671-8650' -replace 'jjy@aimcoltd\\\\.com', 'ceo@aimcoltd.com' | Set-Content 'src/app/policy/[type]/page.tsx' -Encoding UTF8\")",
+      "Bash(powershell -Command \"\\(Get-Content 'src/frontend/components/layout/Footer.tsx' -Raw\\) -replace '정지윤', '최운창' -replace '061-392-9782', '062-671-8650' -replace 'jjy@aimcoltd\\\\.com', 'ceo@aimcoltd.com' | Set-Content 'src/frontend/components/layout/Footer.tsx' -Encoding UTF8\")",
+      "PowerShell(Get-Process -Name \"node\" -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Name \"node\" -Force -ErrorAction SilentlyContinue)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git add *)",
+      "Read(//c/Users/eldorado/.ssh/**)",
+      "Bash(mysql -u root -p'aim64016401!' iclmag -e \"DELETE FROM verification_tokens; DELETE FROM users;\")"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\eldorado\\.ssh"
+    ]
+  }
+}
