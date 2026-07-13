@@ -6,7 +6,7 @@ import { Category, Status } from "@prisma/client";
 // ====================================
 // 기사 목록 조회 / 기사 생성 API
 // GET  /api/articles          - 기사 목록 조회
-// POST /api/articles          - 새 기사 생성 (WRITER/ADMIN만)
+// POST /api/articles          - 새 기사 생성 (ADMIN만)
 // ====================================
 
 /**
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * 새 기사 생성
- * WRITER 또는 ADMIN 권한 필요
+ * ADMIN 권한 필요
  * 요청 Body: { title, content, summary?, thumbnail?, category, status? }
  */
 export async function POST(request: NextRequest) {
@@ -57,10 +57,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 기사 작성 권한 확인 (WRITER 또는 ADMIN만 가능)
+    // 기사 작성 권한 확인 (ADMIN만 가능)
     if (!hasWritePermission(user)) {
       return NextResponse.json(
-        { success: false, message: "기사 작성 권한이 없습니다." },
+        { success: false, message: "관리자만 기사를 작성할 수 있습니다." },
         { status: 403 }
       );
     }

@@ -1,82 +1,155 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-// ====================================
-// 이메일 인증 완료 페이지
-// /verify-email?token=xxx
-// ====================================
-
-type Status = "loading" | "success" | "error";
+type FormMessage = { type: "success" | "error"; text: string };
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
-  const token = searchParams.get("token");
+  const [email, setEmail] = useState(searchParams.get("email") || "");
+  const [code, setCode] = useState("");
+  const [isVerified, setIsVerified] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [message, setMessage] = useState<FormMessage | null>(null);
 
-  const [status, setStatus] = useState<Status>("loading");
-  const [message, setMessage] = useState("");
+  const updateCode = (value: string) => {
+    setCode(value.replace(/\D/g, "").slice(0, 6));
+  };
 
-  useEffect(() => {
-    if (!token) {
-      setStatus("error");
-      setMessage("올바르지 않은 인증 링크입니다.");
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+
+    if (code.length !== 6) {
+      setMessage({ type: "error", text: "6자리 인증 코드를 입력해주세요." });
       return;
     }
 
-    fetch(`/api/auth/verify-email?token=${token}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          setStatus("success");
-          setMessage(data.message);
-        } else {
-          setStatus("error");
-          setMessage(data.message);
-        }
-      })
-      .catch(() => {
-        setStatus("error");
-        setMessage("서버 오류가 발생했습니다.");
+    setIsSubmitting(true);
+
+    try {
+      const res = await fetch("/api/auth/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), code }),
       });
-  }, [token]);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.message || "이메일 인증에 실패했습니다." });
+        return;
+      }
+
+      setIsVerified(true);
+      setMessage({ type: "success", text: "이메일 인증이 완료되었습니다." });
+    } catch {
+      setMessage({ type: "error", text: "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요." });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setMessage(null);
+    setIsResending(true);
+
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.message || "인증 코드 재발송에 실패했습니다." });
+        return;
+      }
+
+      setMessage({ type: "success", text: "인증 코드를 다시 발송했습니다." });
+    } catch {
+      setMessage({ type: "error", text: "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요." });
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   return (
-    <div className="min-h-[60vh] flex items-center justify-center px-4">
-      <div className="max-w-md w-full text-center">
-        {status === "loading" && (
-          <div>
-            <div className="w-16 h-16 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-6" />
-            <p className="text-gray-600">이메일 인증 중...</p>
-          </div>
-        )}
-        {status === "success" && (
-          <div>
-            <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
-              <svg className="w-10 h-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-              </svg>
+    <div className="min-h-[70vh] flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">이메일 인증</h1>
+
+          {message && (
+            <div
+              className={`text-sm rounded-lg px-4 py-3 mb-5 ${
+                message.type === "success"
+                  ? "bg-green-50 border border-green-200 text-green-700"
+                  : "bg-red-50 border border-red-200 text-red-700"
+              }`}
+            >
+              {message.text}
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-3">인증 완료!</h1>
-            <p className="text-gray-600 mb-8">{message}</p>
-            <Link href="/login" className="inline-block bg-accent hover:bg-accent-hover text-white font-semibold px-8 py-3 rounded-lg transition-colors">
+          )}
+
+          {isVerified ? (
+            <Link href="/login?verified=1" className="block w-full text-center btn-primary">
               로그인하러 가기
             </Link>
-          </div>
-        )}
-        {status === "error" && (
-          <div>
-            <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-6">
-              <svg className="w-10 h-10 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-3">인증 실패</h1>
-            <p className="text-gray-600 mb-8">{message}</p>
-            <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">홈으로 돌아가기</Link>
-          </div>
-        )}
+          ) : (
+            <form onSubmit={handleVerify} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="가입한 이메일을 입력하세요"
+                  required
+                  className="input-field"
+                  autoComplete="email"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">인증 코드</label>
+                <input
+                  type="text"
+                  value={code}
+                  onChange={(e) => updateCode(e.target.value)}
+                  placeholder="000000"
+                  required
+                  inputMode="numeric"
+                  pattern="\d{6}"
+                  className="input-field text-center text-2xl font-bold tracking-[0.35em]"
+                  autoComplete="one-time-code"
+                />
+              </div>
+
+              <button type="submit" disabled={isSubmitting} className="w-full btn-primary">
+                {isSubmitting ? "인증 확인 중..." : "인증 완료"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleResendCode}
+                disabled={isResending || !email.trim()}
+                className="w-full btn-secondary"
+              >
+                {isResending ? "재발송 중..." : "인증 코드 다시 받기"}
+              </button>
+            </form>
+          )}
+        </div>
+
+        <p className="text-center mt-4">
+          <Link href="/login" className="text-sm text-gray-400 hover:text-gray-600">
+            로그인으로 돌아가기
+          </Link>
+        </p>
       </div>
     </div>
   );
@@ -84,7 +157,7 @@ function VerifyEmailContent() {
 
 export default function VerifyEmailPage() {
   return (
-    <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center"><div className="w-16 h-16 border-4 border-accent border-t-transparent rounded-full animate-spin" /></div>}>
+    <Suspense fallback={<div className="min-h-[70vh] flex items-center justify-center" />}>
       <VerifyEmailContent />
     </Suspense>
   );

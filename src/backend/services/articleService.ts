@@ -174,23 +174,6 @@ export async function deleteArticle(id: number) {
 }
 
 /**
- * 기사 작성자 확인
- * 수정/삭제 전 권한 확인에 사용
- *
- * @param articleId - 기사 ID
- * @param userId - 현재 사용자 ID
- * @returns 작성자면 true
- */
-export async function isArticleAuthor(articleId: number, userId: number): Promise<boolean> {
-  const article = await prisma.article.findUnique({
-    where: { id: articleId },
-    select: { authorId: true },
-  });
-
-  return article?.authorId === userId;
-}
-
-/**
  * 최근 기사 조회 (홈 상단 Featured 섹션용)
  *
  * @param count - 가져올 기사 수

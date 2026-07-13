@@ -3,15 +3,14 @@ import {
   getArticleById,
   updateArticle,
   deleteArticle,
-  isArticleAuthor,
 } from "@/backend/services/articleService";
 import { requireAuth, isAdmin } from "@/backend/middleware/auth";
 
 // ====================================
 // 개별 기사 조회 / 수정 / 삭제 API
 // GET    /api/articles/[id]   - 기사 상세 조회
-// PUT    /api/articles/[id]   - 기사 수정 (작성자 or 관리자)
-// DELETE /api/articles/[id]   - 기사 삭제 (작성자 or 관리자)
+// PUT    /api/articles/[id]   - 기사 수정 (관리자)
+// DELETE /api/articles/[id]   - 기사 삭제 (관리자)
 // ====================================
 
 /**
@@ -54,7 +53,7 @@ export async function GET(
 
 /**
  * 기사 수정
- * 본인이 작성한 기사 또는 관리자만 수정 가능
+ * 관리자만 수정 가능
  */
 export async function PUT(
   request: NextRequest,
@@ -73,15 +72,18 @@ export async function PUT(
     const { id } = await params;
     const articleId = Number(id);
 
-    // 관리자가 아니면 본인 기사인지 확인
+    if (isNaN(articleId)) {
+      return NextResponse.json(
+        { success: false, message: "올바르지 않은 기사 ID입니다." },
+        { status: 400 }
+      );
+    }
+
     if (!isAdmin(user)) {
-      const isAuthor = await isArticleAuthor(articleId, user.userId);
-      if (!isAuthor) {
-        return NextResponse.json(
-          { success: false, message: "수정 권한이 없습니다." },
-          { status: 403 }
-        );
-      }
+      return NextResponse.json(
+        { success: false, message: "관리자만 기사를 수정할 수 있습니다." },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();
@@ -103,7 +105,7 @@ export async function PUT(
 
 /**
  * 기사 삭제
- * 본인이 작성한 기사 또는 관리자만 삭제 가능
+ * 관리자만 삭제 가능
  */
 export async function DELETE(
   request: NextRequest,
@@ -122,15 +124,18 @@ export async function DELETE(
     const { id } = await params;
     const articleId = Number(id);
 
-    // 관리자가 아니면 본인 기사인지 확인
+    if (isNaN(articleId)) {
+      return NextResponse.json(
+        { success: false, message: "올바르지 않은 기사 ID입니다." },
+        { status: 400 }
+      );
+    }
+
     if (!isAdmin(user)) {
-      const isAuthor = await isArticleAuthor(articleId, user.userId);
-      if (!isAuthor) {
-        return NextResponse.json(
-          { success: false, message: "삭제 권한이 없습니다." },
-          { status: 403 }
-        );
-      }
+      return NextResponse.json(
+        { success: false, message: "관리자만 기사를 삭제할 수 있습니다." },
+        { status: 403 }
+      );
     }
 
     await deleteArticle(articleId);

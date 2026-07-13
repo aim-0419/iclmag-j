@@ -39,9 +39,9 @@ export function useAuth() {
 
   /**
    * 쓰기 권한 여부 확인
-   * WRITER 또는 ADMIN만 기사 작성 가능
+   * ADMIN만 기사 작성 가능
    */
-  const canWrite = user?.role === "WRITER" || user?.role === "ADMIN";
+  const canWrite = user?.role === "ADMIN";
 
   /**
    * 관리자 여부 확인

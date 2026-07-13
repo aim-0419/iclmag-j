@@ -52,12 +52,14 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   let currentUser: { userId: number; role: string } | null = null;
   if (token) {
     const { verifyToken } = await import("@/backend/lib/jwt");
-    try { currentUser = await verifyToken(token) as any; } catch {}
+    const { findUserById } = await import("@/backend/services/userService");
+    try {
+      const tokenUser = await verifyToken(token);
+      const user = tokenUser ? await findUserById(tokenUser.userId) : null;
+      currentUser = user ? { userId: user.id, role: user.role } : null;
+    } catch {}
   }
-  const canDelete = currentUser && (
-    currentUser.role === "ADMIN" ||
-    currentUser.userId === article.author.id
-  );
+  const canDelete = currentUser?.role === "ADMIN";
 
   const categoryLabel = CATEGORY_LABELS[article.category];
   const categoryColor = CATEGORY_COLORS[article.category];

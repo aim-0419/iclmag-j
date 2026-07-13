@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: "회원가입이 완료되었습니다. 이메일로 발송된 인증 링크를 클릭해주세요.",
+        message: "회원가입이 완료되었습니다. 이메일로 발송된 인증 코드를 입력해주세요.",
         data: { id: user.id, email: user.email, name: user.name },
       },
       { status: 201 }

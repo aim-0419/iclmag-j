@@ -6,7 +6,7 @@ import Editor from "@/frontend/components/articles/Editor";
 
 // ====================================
 // 기사 작성 페이지
-// 로그인한 WRITER/ADMIN만 접근 가능
+// 로그인한 ADMIN만 접근 가능
 // ====================================
 
 export default function WritePage() {
@@ -36,9 +36,9 @@ export default function WritePage() {
       const data = await res.json();
       const user = data.data;
 
-      // WRITER 또는 ADMIN만 접근 가능
-      if (user.role !== "WRITER" && user.role !== "ADMIN") {
-        alert("기사 작성 권한이 없습니다. 관리자에게 문의하세요.");
+      // ADMIN만 접근 가능
+      if (user.role !== "ADMIN") {
+        alert("관리자만 기사를 작성할 수 있습니다.");
         router.push("/");
         return;
       }

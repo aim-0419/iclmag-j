@@ -186,6 +186,7 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [unverifiedEmail, setUnverifiedEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [modal, setModal] = useState<"find-email" | "forgot-password" | null>(null);
 
@@ -198,6 +199,7 @@ function LoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setUnverifiedEmail("");
     setIsLoading(true);
 
     try {
@@ -212,6 +214,7 @@ function LoginForm() {
       if (!res.ok) {
         if (data.code === "EMAIL_NOT_VERIFIED") {
           setError("이메일 인증이 완료되지 않았습니다. 가입 시 발송된 인증 메일을 확인해주세요.");
+          setUnverifiedEmail(email.trim());
         } else {
           setError(data.message || "로그인에 실패했습니다.");
         }
@@ -256,6 +259,14 @@ function LoginForm() {
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-5">
                 {error}
+                {unverifiedEmail && (
+                  <Link
+                    href={`/verify-email?email=${encodeURIComponent(unverifiedEmail)}`}
+                    className="block mt-2 font-medium text-red-700 underline underline-offset-2"
+                  >
+                    이메일 인증하러 가기
+                  </Link>
+                )}
               </div>
             )}
 
@@ -312,7 +323,12 @@ function LoginForm() {
               </button>
             </div>
 
-            {/* 회원가입 비활성화 */}
+            <div className="text-center mt-6 text-sm text-gray-500">
+              아직 계정이 없으신가요?{" "}
+              <Link href="/register" className="text-accent hover:text-accent-hover font-medium">
+                회원가입
+              </Link>
+            </div>
           </div>
 
           <p className="text-center mt-4">

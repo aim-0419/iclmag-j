@@ -80,8 +80,8 @@ export default function Header() {
             {user ? (
               // 로그인 된 경우
               <div className="flex items-center gap-3">
-                {/* 기사 쓰기 버튼 (WRITER, ADMIN만) */}
-                {(user.role === "WRITER" || user.role === "ADMIN") && (
+                {/* 기사 쓰기 버튼 (ADMIN만) */}
+                {user.role === "ADMIN" && (
                   <Link
                     href="/write"
                     className="bg-accent hover:bg-accent-hover text-white text-sm font-medium px-4 py-2 rounded transition-colors"
@@ -112,7 +112,12 @@ export default function Header() {
                 >
                   로그인
                 </Link>
-                {/* 회원가입 비활성화 */}
+                <Link
+                  href="/register"
+                  className="bg-accent hover:bg-accent-hover text-white text-sm font-medium px-4 py-2 rounded transition-colors"
+                >
+                  회원가입
+                </Link>
               </div>
             )}
 
@@ -180,7 +185,7 @@ export default function Header() {
               >
                 {user.name}님 (마이페이지)
               </Link>
-              {(user.role === "WRITER" || user.role === "ADMIN") && (
+              {user.role === "ADMIN" && (
                 <Link href="/write" className="text-accent text-sm" onClick={() => setIsMenuOpen(false)}>
                   ✏️ 기사 쓰기
                 </Link>
@@ -194,7 +199,9 @@ export default function Header() {
               <Link href="/login" className="text-gray-300 text-sm" onClick={() => setIsMenuOpen(false)}>
                 로그인
               </Link>
-              {/* 회원가입 비활성화 */}
+              <Link href="/register" className="text-accent text-sm" onClick={() => setIsMenuOpen(false)}>
+                회원가입
+              </Link>
             </div>
           )}
         </div>
