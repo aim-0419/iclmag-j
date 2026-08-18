@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { findUserByEmail } from "@/backend/services/userService";
 import { createPasswordResetToken } from "@/backend/services/passwordResetService";
 import { sendPasswordResetEmail } from "@/backend/lib/email";
-import { ok, fail, serverError } from "@/backend/lib/apiResponse";
+import { ok, fail, serverError, tooManyRequests } from "@/backend/lib/apiResponse";
+import { limitByIp } from "@/backend/lib/rateLimit";
 
 // ====================================
 // 비밀번호 재설정 메일 요청 API
@@ -13,6 +14,10 @@ import { ok, fail, serverError } from "@/backend/lib/apiResponse";
 
 export async function POST(request: NextRequest) {
   try {
+    // 남의 메일함에 재설정 메일을 계속 쏟아붓는 것을 차단 (10분에 5번까지)
+    const rate = limitByIp(request, "sendMail");
+    if (!rate.allowed) return tooManyRequests(rate.retryAfterSec);
+
     const { email } = await request.json();
 
     if (!email) return fail("이메일을 입력해주세요.", 400);

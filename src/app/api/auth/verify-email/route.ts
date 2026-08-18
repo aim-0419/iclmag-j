@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { verifyEmailCode } from "@/backend/services/verificationService";
-import { ok, fail, serverError } from "@/backend/lib/apiResponse";
+import { ok, fail, serverError, tooManyRequests } from "@/backend/lib/apiResponse";
+import { limitByIp } from "@/backend/lib/rateLimit";
 
 // ====================================
 // 이메일 인증 코드 확인 API
@@ -12,6 +13,10 @@ import { ok, fail, serverError } from "@/backend/lib/apiResponse";
 
 export async function POST(request: NextRequest) {
   try {
+    // 6자리 숫자를 기계로 하나씩 넣어 보며 맞추는 것을 차단 (10분에 10번까지)
+    const rate = limitByIp(request, "verifyEmail");
+    if (!rate.allowed) return tooManyRequests(rate.retryAfterSec);
+
     const { email, code } = await request.json();
 
     if (!email || !code) {

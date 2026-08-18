@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { verifyPasswordResetToken, deletePasswordResetToken } from "@/backend/services/passwordResetService";
 import { updateUserPassword } from "@/backend/services/userService";
-import { ok, fail, serverError } from "@/backend/lib/apiResponse";
+import { ok, fail, serverError, tooManyRequests } from "@/backend/lib/apiResponse";
+import { limitByIp } from "@/backend/lib/rateLimit";
 
 // ====================================
 // 새 비밀번호 저장 API
@@ -13,6 +14,10 @@ import { ok, fail, serverError } from "@/backend/lib/apiResponse";
 
 export async function POST(request: NextRequest) {
   try {
+    // 재설정 열쇠를 무작위로 찍어 보는 것을 차단 (10분에 10번까지)
+    const rate = limitByIp(request, "resetPassword");
+    if (!rate.allowed) return tooManyRequests(rate.retryAfterSec);
+
     const { token, password } = await request.json();
 
     if (!token || !password) {

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateLogin } from "@/backend/services/userService";
 import { signToken } from "@/backend/lib/jwt";
-import { fail, serverError } from "@/backend/lib/apiResponse";
+import { fail, serverError, tooManyRequests } from "@/backend/lib/apiResponse";
+import { limitByIp, resetRateLimit, getClientKey } from "@/backend/lib/rateLimit";
+import { USE_SECURE_COOKIE } from "@/backend/lib/env";
 
 // ====================================
 // 로그인 API
@@ -17,6 +19,10 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 
 export async function POST(request: NextRequest) {
   try {
+    // 0) 같은 곳에서 비밀번호를 반복해서 찍어 보는 공격 차단 (10분에 10번까지)
+    const rate = limitByIp(request, "login");
+    if (!rate.allowed) return tooManyRequests(rate.retryAfterSec);
+
     const { email, password } = await request.json();
 
     if (!email || !password) {
@@ -42,6 +48,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 로그인에 성공했으므로 그동안 쌓인 실패 횟수를 지웁니다.
+    resetRateLimit(`login:${getClientKey(request)}`);
+
     // 3) 로그인 증명서 발급
     const token = await signToken({
       userId: user.id,
@@ -60,7 +69,7 @@ export async function POST(request: NextRequest) {
     //    secure 는 https 주소일 때만 켭니다 (http 개발 환경에서는 쿠키가 저장되지 않기 때문)
     response.cookies.set("auth_token", token, {
       httpOnly: true, // 자바스크립트에서 접근 불가 (탈취 방지)
-      secure: process.env.NEXT_PUBLIC_APP_URL?.startsWith("https") ?? false,
+      secure: USE_SECURE_COOKIE, // https 사이트에서만 켜짐 (env.ts 에서 판단)
       sameSite: "lax", // 다른 사이트에서의 위조 요청 방지
       maxAge: COOKIE_MAX_AGE,
       path: "/",

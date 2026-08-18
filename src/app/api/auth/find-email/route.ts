@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/backend/lib/db";
-import { ok, fail, serverError } from "@/backend/lib/apiResponse";
+import { ok, fail, serverError, tooManyRequests } from "@/backend/lib/apiResponse";
+import { limitByIp } from "@/backend/lib/rateLimit";
 
 // ====================================
 // 아이디(이메일) 찾기 API
@@ -22,6 +23,10 @@ function maskEmail(email: string): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // 흔한 이름을 계속 넣어 가입자 목록을 긁어모으는 것을 차단 (10분에 10번까지)
+    const rate = limitByIp(request, "findEmail");
+    if (!rate.allowed) return tooManyRequests(rate.retryAfterSec);
+
     const { name } = await request.json();
 
     if (!name || name.trim().length < 2) {

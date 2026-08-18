@@ -1,5 +1,15 @@
 name: Deploy to EC2
 
+# ====================================
+# 자동 배포 설정
+# ------------------------------------
+# main 브랜치에 코드가 올라가면 EC2 서버에 자동으로 반영합니다.
+#
+# 접속 정보(주소·계정·열쇠)는 코드에 적지 않고
+# GitHub 저장소의 Settings > Secrets and variables > Actions 에 보관합니다.
+# 그래야 소스코드가 공개되어도 서버 접속 정보가 새지 않습니다.
+# ====================================
+
 on:
   push:
     branches:
@@ -18,9 +28,17 @@ jobs:
           key: ${{ secrets.EC2_KEY }}
           port: 22
           script: |
+            # set -e : 중간에 한 단계라도 실패하면 즉시 멈춥니다.
+            # 이렇게 하지 않으면 빌드가 실패했는데도 서버를 다시 시작해서
+            # 망가진 상태가 실제 사이트에 반영될 수 있습니다.
+            set -e
+
             cd /home/ubuntu/iclmag_j
             git pull origin main
-            npm install --production=false
+            npm ci || npm install
+            npx prisma generate
             npm run build
+
+            # 여기까지 문제없이 끝났을 때만 서버를 교체합니다.
             pm2 restart iclmag-j
-            echo "✅ 배포 완료"
+            echo "배포 완료"

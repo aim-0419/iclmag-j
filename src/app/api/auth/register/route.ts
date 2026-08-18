@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { createUser, validateUserInput } from "@/backend/services/userService";
 import { createVerificationToken } from "@/backend/services/verificationService";
 import { sendVerificationEmail } from "@/backend/lib/email";
-import { ok, fail, serverError } from "@/backend/lib/apiResponse";
+import { ok, fail, serverError, tooManyRequests } from "@/backend/lib/apiResponse";
+import { limitByIp } from "@/backend/lib/rateLimit";
 
 // ====================================
 // 회원가입 API
@@ -15,6 +16,10 @@ import { ok, fail, serverError } from "@/backend/lib/apiResponse";
 
 export async function POST(request: NextRequest) {
   try {
+    // 자동 프로그램이 가짜 계정을 대량으로 만드는 것을 차단 (1시간에 5번까지)
+    const rate = limitByIp(request, "register");
+    if (!rate.allowed) return tooManyRequests(rate.retryAfterSec);
+
     const { name, email, password } = await request.json();
 
     // 1) 입력값 확인 (화면에서도 확인하지만 서버에서 다시 검사)

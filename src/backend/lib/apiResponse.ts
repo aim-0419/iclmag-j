@@ -18,6 +18,7 @@ export const MESSAGES = {
   adminOnly: "관리자만 사용할 수 있는 기능입니다.",
   serverError: "서버 오류가 발생했습니다.",
   invalidArticleId: "올바르지 않은 기사 ID입니다.",
+  tooManyAttempts: "시도 횟수가 너무 많습니다. 잠시 후 다시 시도해주세요.",
   articleNotFound: "기사를 찾을 수 없습니다.",
   userNotFound: "사용자를 찾을 수 없습니다.",
 } as const;
@@ -30,6 +31,24 @@ export function ok<T>(data?: T, message?: string, status = 200) {
 /** 실패 응답 만들기 */
 export function fail(message: string, status = 400, errors?: string[]) {
   return NextResponse.json({ success: false, message, ...(errors && { errors }) }, { status });
+}
+
+/**
+ * 짧은 시간에 너무 많이 시도했을 때의 응답 만들기 (429)
+ *
+ * Retry-After 헤더에 "몇 초 뒤에 다시 시도하면 되는지"를 담아 보냅니다.
+ *
+ * @param retryAfterSec - 다시 시도 가능해질 때까지 남은 시간(초)
+ */
+export function tooManyRequests(retryAfterSec: number) {
+  const minutes = Math.ceil(retryAfterSec / 60);
+  return NextResponse.json(
+    {
+      success: false,
+      message: `시도 횟수가 너무 많습니다. 약 ${minutes}분 후에 다시 시도해주세요.`,
+    },
+    { status: 429, headers: { "Retry-After": String(retryAfterSec) } }
+  );
 }
 
 /**
