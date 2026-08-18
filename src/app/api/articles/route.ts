@@ -1,18 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getArticles, createArticle, validateArticleInput } from "@/backend/services/articleService";
-import { requireAuth, hasWritePermission } from "@/backend/middleware/auth";
-import { Category, Status } from "@prisma/client";
+import { requireAuth, isAdmin } from "@/backend/middleware/auth";
+import { ok, fail, serverError, MESSAGES } from "@/backend/lib/apiResponse";
+import { isValidCategory } from "@/constants/categories";
+import { Status } from "@prisma/client";
 
 // ====================================
-// 기사 목록 조회 / 기사 생성 API
-// GET  /api/articles          - 기사 목록 조회
-// POST /api/articles          - 새 기사 생성 (ADMIN만)
+// 기사 목록 조회 / 새 기사 등록 API
+// ------------------------------------
+// GET  /api/articles  → 기사 목록 가져오기 (누구나)
+// POST /api/articles  → 새 기사 등록하기 (관리자만)
 // ====================================
 
 /**
- * 기사 목록 조회
- * 페이지네이션과 카테고리 필터 지원
- * 쿼리 파라미터: ?page=1&category=POLITICS
+ * 기사 목록 가져오기
+ * 주소 뒤에 조건을 붙일 수 있습니다.
+ *   예) /api/articles?page=2&category=POLITICS
  */
 export async function GET(request: NextRequest) {
   try {
@@ -20,89 +23,56 @@ export async function GET(request: NextRequest) {
     const page = Number(searchParams.get("page")) || 1;
     const categoryParam = searchParams.get("category");
 
-    // 카테고리 파라미터 검증
-    const validCategories = ["POLITICS", "ECONOMY", "SOCIETY", "CULTURE", "TECH", "WORLD"];
-    const category = categoryParam && validCategories.includes(categoryParam)
-      ? (categoryParam as Category)
-      : undefined;
+    // 이상한 카테고리 값이 들어오면 무시하고 전체 목록을 보여 줌
+    const category = isValidCategory(categoryParam) ? categoryParam : undefined;
 
-    const result = await getArticles(page, category);
-
-    return NextResponse.json({
-      success: true,
-      data: result,
-    });
+    return ok(await getArticles(page, category));
   } catch (error) {
-    console.error("[기사 목록 조회 오류]", error);
-    return NextResponse.json(
-      { success: false, message: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return serverError("기사 목록 조회", error);
   }
 }
 
 /**
- * 새 기사 생성
- * ADMIN 권한 필요
- * 요청 Body: { title, content, summary?, thumbnail?, category, status? }
+ * 새 기사 등록하기 (관리자 전용)
+ * 보내야 하는 값: { title, content, summary?, thumbnail?, category, status? }
  */
 export async function POST(request: NextRequest) {
   try {
-    // 인증 확인
+    // 1) 로그인했는지 확인
     const user = await requireAuth(request);
-    if (!user) {
-      return NextResponse.json(
-        { success: false, message: "로그인이 필요합니다." },
-        { status: 401 }
-      );
-    }
+    if (!user) return fail(MESSAGES.loginRequired, 401);
 
-    // 기사 작성 권한 확인 (ADMIN만 가능)
-    if (!hasWritePermission(user)) {
-      return NextResponse.json(
-        { success: false, message: "관리자만 기사를 작성할 수 있습니다." },
-        { status: 403 }
-      );
-    }
+    // 2) 관리자인지 확인
+    if (!isAdmin(user)) return fail("관리자만 기사를 작성할 수 있습니다.", 403);
 
-    const body = await request.json();
-    const { title, content, summary, thumbnail, category, status } = body;
+    const { title, content, summary, thumbnail, category, status } = await request.json();
 
-    // 입력값 유효성 검증
+    // 3) 입력값이 올바른지 확인
     const errors = validateArticleInput(title, content, category);
     if (errors.length > 0) {
-      return NextResponse.json(
-        { success: false, errors },
-        { status: 400 }
-      );
+      return fail(errors[0], 400, errors);
     }
 
-    // 기사 생성
+    // 4) 저장 (status 를 지정하지 않으면 임시저장으로 처리)
+    const isPublished = status === Status.PUBLISHED;
     const article = await createArticle(
       {
         title: title.trim(),
         content: content.trim(),
         summary: summary?.trim() || null,
         thumbnail: thumbnail || null,
-        category: category as Category,
-        status: (status as Status) || Status.DRAFT,
+        category,
+        status: isPublished ? Status.PUBLISHED : Status.DRAFT,
       },
       user.userId
     );
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: status === "PUBLISHED" ? "기사가 발행되었습니다." : "임시저장되었습니다.",
-        data: article,
-      },
-      { status: 201 }
+    return ok(
+      article,
+      isPublished ? "기사가 발행되었습니다." : "임시저장되었습니다.",
+      201
     );
   } catch (error) {
-    console.error("[기사 생성 오류]", error);
-    return NextResponse.json(
-      { success: false, message: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return serverError("기사 등록", error);
   }
 }

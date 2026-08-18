@@ -1,154 +1,97 @@
-import { NextRequest, NextResponse } from "next/server";
-import {
-  getArticleById,
-  updateArticle,
-  deleteArticle,
-} from "@/backend/services/articleService";
+import { NextRequest } from "next/server";
+import { getArticleById, updateArticle, deleteArticle } from "@/backend/services/articleService";
 import { requireAuth, isAdmin } from "@/backend/middleware/auth";
+import { ok, fail, serverError, MESSAGES } from "@/backend/lib/apiResponse";
 
 // ====================================
-// 개별 기사 조회 / 수정 / 삭제 API
-// GET    /api/articles/[id]   - 기사 상세 조회
-// PUT    /api/articles/[id]   - 기사 수정 (관리자)
-// DELETE /api/articles/[id]   - 기사 삭제 (관리자)
+// 기사 한 건 조회 / 수정 / 삭제 API
+// ------------------------------------
+// GET    /api/articles/기사번호  → 기사 내용 보기 (누구나)
+// PUT    /api/articles/기사번호  → 기사 수정하기 (관리자만)
+// DELETE /api/articles/기사번호  → 기사 삭제하기 (관리자만)
 // ====================================
+
+/** 주소에 들어 있는 기사 번호를 숫자로 바꿔 줍니다. 숫자가 아니면 null */
+async function readArticleId(params: Promise<{ id: string }>): Promise<number | null> {
+  const { id } = await params;
+  const articleId = Number(id);
+  return Number.isInteger(articleId) ? articleId : null;
+}
 
 /**
- * 기사 상세 조회
- * 조회수가 자동으로 1 증가됨
+ * 로그인 + 관리자 권한을 한 번에 확인합니다.
+ * 문제가 있으면 그대로 돌려보낼 응답을, 통과하면 null 을 돌려줍니다.
+ */
+async function checkAdmin(request: NextRequest) {
+  const user = await requireAuth(request);
+  if (!user) return fail(MESSAGES.loginRequired, 401);
+  if (!isAdmin(user)) return fail(MESSAGES.adminOnly, 403);
+  return null;
+}
+
+/**
+ * 기사 내용 보기
+ * 열어볼 때마다 조회수가 1씩 올라갑니다.
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    const articleId = Number(id);
-
-    if (isNaN(articleId)) {
-      return NextResponse.json(
-        { success: false, message: "올바르지 않은 기사 ID입니다." },
-        { status: 400 }
-      );
-    }
+    const articleId = await readArticleId(params);
+    if (articleId === null) return fail(MESSAGES.invalidArticleId, 400);
 
     const article = await getArticleById(articleId);
+    if (!article) return fail(MESSAGES.articleNotFound, 404);
 
-    if (!article) {
-      return NextResponse.json(
-        { success: false, message: "기사를 찾을 수 없습니다." },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ success: true, data: article });
+    return ok(article);
   } catch (error) {
-    console.error("[기사 조회 오류]", error);
-    return NextResponse.json(
-      { success: false, message: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return serverError("기사 조회", error);
   }
 }
 
 /**
- * 기사 수정
- * 관리자만 수정 가능
+ * 기사 수정하기 (관리자 전용)
  */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 인증 확인
-    const user = await requireAuth(request);
-    if (!user) {
-      return NextResponse.json(
-        { success: false, message: "로그인이 필요합니다." },
-        { status: 401 }
-      );
-    }
+    const denied = await checkAdmin(request);
+    if (denied) return denied;
 
-    const { id } = await params;
-    const articleId = Number(id);
-
-    if (isNaN(articleId)) {
-      return NextResponse.json(
-        { success: false, message: "올바르지 않은 기사 ID입니다." },
-        { status: 400 }
-      );
-    }
-
-    if (!isAdmin(user)) {
-      return NextResponse.json(
-        { success: false, message: "관리자만 기사를 수정할 수 있습니다." },
-        { status: 403 }
-      );
-    }
+    const articleId = await readArticleId(params);
+    if (articleId === null) return fail(MESSAGES.invalidArticleId, 400);
 
     const body = await request.json();
     const updatedArticle = await updateArticle(articleId, body);
 
-    return NextResponse.json({
-      success: true,
-      message: "기사가 수정되었습니다.",
-      data: updatedArticle,
-    });
+    return ok(updatedArticle, "기사가 수정되었습니다.");
   } catch (error) {
-    console.error("[기사 수정 오류]", error);
-    return NextResponse.json(
-      { success: false, message: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return serverError("기사 수정", error);
   }
 }
 
 /**
- * 기사 삭제
- * 관리자만 삭제 가능
+ * 기사 삭제하기 (관리자 전용)
+ * 삭제한 기사는 되돌릴 수 없습니다.
  */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 인증 확인
-    const user = await requireAuth(request);
-    if (!user) {
-      return NextResponse.json(
-        { success: false, message: "로그인이 필요합니다." },
-        { status: 401 }
-      );
-    }
+    const denied = await checkAdmin(request);
+    if (denied) return denied;
 
-    const { id } = await params;
-    const articleId = Number(id);
-
-    if (isNaN(articleId)) {
-      return NextResponse.json(
-        { success: false, message: "올바르지 않은 기사 ID입니다." },
-        { status: 400 }
-      );
-    }
-
-    if (!isAdmin(user)) {
-      return NextResponse.json(
-        { success: false, message: "관리자만 기사를 삭제할 수 있습니다." },
-        { status: 403 }
-      );
-    }
+    const articleId = await readArticleId(params);
+    if (articleId === null) return fail(MESSAGES.invalidArticleId, 400);
 
     await deleteArticle(articleId);
 
-    return NextResponse.json({
-      success: true,
-      message: "기사가 삭제되었습니다.",
-    });
+    return ok(undefined, "기사가 삭제되었습니다.");
   } catch (error) {
-    console.error("[기사 삭제 오류]", error);
-    return NextResponse.json(
-      { success: false, message: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return serverError("기사 삭제", error);
   }
 }

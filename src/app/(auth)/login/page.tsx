@@ -3,202 +3,44 @@
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import AuthCard from "@/frontend/components/auth/AuthCard";
+import FormMessage, { type Message } from "@/frontend/components/auth/FormMessage";
+import FindEmailModal from "@/frontend/components/auth/FindEmailModal";
+import ForgotPasswordModal from "@/frontend/components/auth/ForgotPasswordModal";
 
 // ====================================
-// 로그인 페이지
-// 이메일 + 비밀번호로 로그인 처리
-// 아이디 찾기 / 비밀번호 찾기 모달 포함
+// 로그인 화면
+// 주소: /login
+// ------------------------------------
+// 아이디(또는 이메일)와 비밀번호로 로그인합니다.
+// 아래쪽 "아이디 찾기 / 비밀번호 찾기"를 누르면 작은 팝업 창이 열립니다.
+//
+// 이메일 인증을 아직 마치지 않은 계정으로 로그인하면
+// 안내 문구와 함께 "이메일 인증하러 가기" 링크를 보여 줍니다.
 // ====================================
 
-// ---------- 아이디 찾기 모달 ----------
-function FindEmailModal({ onClose }: { onClose: () => void }) {
-  const [name, setName] = useState("");
-  const [result, setResult] = useState<{ email: string; createdAt: string }[] | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setResult(null);
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/auth/find-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setResult(data.accounts);
-      } else {
-        setError(data.message);
-      }
-    } catch {
-      setError("서버 오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-gray-900">아이디(이메일) 찾기</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-        </div>
-
-        {!result ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">가입 시 입력한 이름</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="이름 입력"
-                required
-                className="input-field"
-                autoFocus
-              />
-            </div>
-
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
-            )}
-
-            <button type="submit" disabled={loading} className="w-full btn-primary">
-              {loading ? "조회 중..." : "아이디 찾기"}
-            </button>
-          </form>
-        ) : (
-          <div>
-            <p className="text-sm text-gray-600 mb-4">해당 이름으로 가입된 계정입니다:</p>
-            <ul className="space-y-2 mb-5">
-              {result.map((acc, i) => (
-                <li key={i} className="bg-gray-50 rounded-lg px-4 py-3">
-                  <p className="font-mono font-semibold text-gray-900">{acc.email}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">가입일: {acc.createdAt}</p>
-                </li>
-              ))}
-            </ul>
-            <button onClick={onClose} className="w-full btn-primary">확인</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ---------- 비밀번호 찾기 모달 ----------
-function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setSent(true);
-      } else {
-        setError(data.message);
-      }
-    } catch {
-      setError("서버 오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-gray-900">비밀번호 찾기</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-        </div>
-
-        {!sent ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <p className="text-sm text-gray-500">
-              가입한 이메일을 입력하면 비밀번호 재설정 링크를 보내드립니다.
-            </p>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="이메일 입력"
-                required
-                className="input-field"
-                autoFocus
-              />
-            </div>
-
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
-            )}
-
-            <button type="submit" disabled={loading} className="w-full btn-primary">
-              {loading ? "발송 중..." : "재설정 링크 발송"}
-            </button>
-          </form>
-        ) : (
-          <div className="text-center py-4">
-            <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <p className="text-gray-700 font-medium mb-1">이메일을 발송했습니다!</p>
-            <p className="text-sm text-gray-400 mb-5">
-              받은 편지함을 확인해주세요.<br/>링크는 30분 후 만료됩니다.
-            </p>
-            <button onClick={onClose} className="w-full btn-primary">확인</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ---------- 로그인 폼 ----------
 function LoginForm() {
   const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [message, setMessage] = useState<Message | null>(null);
   const [unverifiedEmail, setUnverifiedEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // 지금 열려 있는 팝업 (없으면 null)
   const [modal, setModal] = useState<"find-email" | "forgot-password" | null>(null);
 
+  // 이메일 인증을 마치고 넘어온 경우(?verified=1) 축하 문구를 보여 줍니다.
   useEffect(() => {
     if (searchParams.get("verified") === "1") {
-      setNotice("이메일 인증이 완료되었습니다! 이제 로그인하세요.");
+      setMessage({ type: "success", text: "이메일 인증이 완료되었습니다! 이제 로그인하세요." });
     }
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setMessage(null);
     setUnverifiedEmail("");
     setIsLoading(true);
 
@@ -208,22 +50,22 @@ function LoginForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-
       const data = await res.json();
 
       if (!res.ok) {
+        // 이메일 인증을 마치지 않은 계정
         if (data.code === "EMAIL_NOT_VERIFIED") {
-          setError("이메일 인증이 완료되지 않았습니다. 가입 시 발송된 인증 메일을 확인해주세요.");
           setUnverifiedEmail(email.trim());
-        } else {
-          setError(data.message || "로그인에 실패했습니다.");
         }
+        setMessage({ type: "error", text: data.message || "로그인에 실패했습니다." });
         return;
       }
 
+      // 로그인 성공 → 홈으로 이동
+      // (화면 전체를 새로 불러와 헤더의 로그인 정보까지 확실히 갱신합니다)
       window.location.href = "/";
     } catch {
-      setError("서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      setMessage({ type: "error", text: "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요." });
     } finally {
       setIsLoading(false);
     }
@@ -231,120 +73,103 @@ function LoginForm() {
 
   return (
     <>
-      {/* 모달 */}
+      {/* 팝업 창 */}
       {modal === "find-email" && <FindEmailModal onClose={() => setModal(null)} />}
       {modal === "forgot-password" && <ForgotPasswordModal onClose={() => setModal(null)} />}
 
-      <div className="min-h-screen bg-surface flex items-center justify-center px-4">
-        <div className="w-full max-w-md">
-          {/* 로고 */}
-          <div className="text-center mb-8">
-            <Link href="/" className="inline-flex items-center gap-1">
-              <span className="text-accent font-black text-3xl">ICL</span>
-              <span className="font-light text-2xl text-gray-700">MAG-J</span>
-            </Link>
-            <p className="text-gray-500 text-sm mt-2">계속하려면 로그인하세요</p>
+      <AuthCard
+        title="로그인"
+        subtitle="계속하려면 로그인하세요"
+        footer={
+          <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">
+            홈으로 돌아가기
+          </Link>
+        }
+      >
+        <FormMessage message={message} />
+
+        {/* 미인증 계정 안내 링크 */}
+        {unverifiedEmail && (
+          <Link
+            href={`/verify-email?email=${encodeURIComponent(unverifiedEmail)}`}
+            className="block -mt-3 mb-5 text-sm font-medium text-red-700 underline underline-offset-2"
+          >
+            이메일 인증하러 가기
+          </Link>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="login-email" className="block text-sm font-medium text-gray-700 mb-1">
+              아이디 또는 이메일
+            </label>
+            <input
+              id="login-email"
+              type="text"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="아이디 또는 이메일을 입력하세요"
+              required
+              autoComplete="username"
+              className="input-field"
+            />
           </div>
 
-          {/* 로그인 카드 */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-6">로그인</h1>
-
-            {notice && (
-              <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3 mb-5">
-                ✅ {notice}
-              </div>
-            )}
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-5">
-                {error}
-                {unverifiedEmail && (
-                  <Link
-                    href={`/verify-email?email=${encodeURIComponent(unverifiedEmail)}`}
-                    className="block mt-2 font-medium text-red-700 underline underline-offset-2"
-                  >
-                    이메일 인증하러 가기
-                  </Link>
-                )}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">아이디 또는 이메일</label>
-                <input
-                  type="text"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="아이디 또는 이메일을 입력하세요"
-                  required
-                  className="input-field"
-                  autoComplete="username"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="비밀번호를 입력하세요"
-                  required
-                  className="input-field"
-                  autoComplete="current-password"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full btn-primary mt-2"
-              >
-                {isLoading ? "로그인 중..." : "로그인"}
-              </button>
-            </form>
-
-            {/* 아이디/비밀번호 찾기 */}
-            <div className="flex items-center justify-center gap-4 mt-4 text-xs text-gray-400">
-              <button
-                onClick={() => setModal("find-email")}
-                className="hover:text-gray-600 transition-colors"
-              >
-                아이디 찾기
-              </button>
-              <span>|</span>
-              <button
-                onClick={() => setModal("forgot-password")}
-                className="hover:text-gray-600 transition-colors"
-              >
-                비밀번호 찾기
-              </button>
-            </div>
-
-            <div className="text-center mt-6 text-sm text-gray-500">
-              아직 계정이 없으신가요?{" "}
-              <Link href="/register" className="text-accent hover:text-accent-hover font-medium">
-                회원가입
-              </Link>
-            </div>
+          <div>
+            <label htmlFor="login-password" className="block text-sm font-medium text-gray-700 mb-1">
+              비밀번호
+            </label>
+            <input
+              id="login-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="비밀번호를 입력하세요"
+              required
+              autoComplete="current-password"
+              className="input-field"
+            />
           </div>
 
-          <p className="text-center mt-4">
-            <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">
-              ← 홈으로 돌아가기
-            </Link>
-          </p>
+          <button type="submit" disabled={isLoading} className="w-full btn-primary mt-2">
+            {isLoading ? "로그인 중..." : "로그인"}
+          </button>
+        </form>
+
+        {/* 아이디 / 비밀번호 찾기 */}
+        <div className="flex items-center justify-center gap-4 mt-4 text-xs text-gray-400">
+          <button
+            type="button"
+            onClick={() => setModal("find-email")}
+            className="hover:text-gray-600 transition-colors"
+          >
+            아이디 찾기
+          </button>
+          <span aria-hidden>|</span>
+          <button
+            type="button"
+            onClick={() => setModal("forgot-password")}
+            className="hover:text-gray-600 transition-colors"
+          >
+            비밀번호 찾기
+          </button>
         </div>
-      </div>
+
+        <div className="text-center mt-6 text-sm text-gray-500">
+          아직 계정이 없으신가요?{" "}
+          <Link href="/register" className="text-accent hover:text-accent-hover font-medium">
+            회원가입
+          </Link>
+        </div>
+      </AuthCard>
     </>
   );
 }
 
+// useSearchParams 를 쓰는 화면은 Suspense 로 감싸야 한다는 Next.js 규칙에 따른 처리입니다.
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-surface flex items-center justify-center" />}>
+    <Suspense fallback={<div className="auth-page min-h-[50vh]" />}>
       <LoginForm />
     </Suspense>
   );

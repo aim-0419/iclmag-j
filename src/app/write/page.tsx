@@ -2,68 +2,46 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Editor from "@/frontend/components/articles/Editor";
+import ArticleEditor, { type ArticleFormData } from "@/frontend/components/articles/ArticleEditor";
+import { useAuth } from "@/frontend/hooks/useAuth";
 
 // ====================================
-// 기사 작성 페이지
-// 로그인한 ADMIN만 접근 가능
+// 기사 작성 화면
+// 주소: /write
+// ------------------------------------
+// 관리자만 들어올 수 있습니다.
+//   로그인하지 않았으면  → 로그인 화면으로 보냄
+//   관리자가 아니면      → 안내 후 홈으로 보냄
+//
+// 실제 입력 화면은 ArticleEditor 컴포넌트가 담당하고,
+// 이 파일은 "권한 확인"과 "저장 요청"만 처리합니다.
 // ====================================
 
 export default function WritePage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const { user, isLoading: isCheckingAuth, isAdmin } = useAuth();
 
-  // 페이지 진입 시 권한 확인
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  // 로그인·권한 확인이 끝나면 자격이 없는 사람을 내보냅니다.
   useEffect(() => {
-    checkPermission();
-  }, []);
+    if (isCheckingAuth) return;
 
-  /**
-   * 기사 작성 권한 확인
-   * 로그인하지 않았거나 권한 없으면 리다이렉트
-   */
-  const checkPermission = async () => {
-    try {
-      const res = await fetch("/api/auth/me");
-
-      if (!res.ok) {
-        // 로그인 안 된 경우 → 로그인 페이지로
-        router.push("/login");
-        return;
-      }
-
-      const data = await res.json();
-      const user = data.data;
-
-      // ADMIN만 접근 가능
-      if (user.role !== "ADMIN") {
-        alert("관리자만 기사를 작성할 수 있습니다.");
-        router.push("/");
-        return;
-      }
-    } catch {
-      router.push("/login");
-    } finally {
-      setIsAuthChecking(false);
+    if (!user) {
+      router.replace("/login");
+    } else if (!isAdmin) {
+      router.replace("/");
     }
-  };
+  }, [isCheckingAuth, user, isAdmin, router]);
 
   /**
-   * 기사 저장 처리
-   * Editor 컴포넌트에서 제출 시 호출됨
-   *
-   * @param data - 기사 데이터 (제목, 본문, 카테고리 등)
+   * 저장 버튼을 눌렀을 때 서버에 기사를 보냅니다.
+   * 저장에 성공하면 방금 쓴 기사 화면으로 이동합니다.
    */
-  const handleSubmit = async (data: {
-    title: string;
-    content: string;
-    summary: string;
-    category: string;
-    thumbnail: string;
-    status: "DRAFT" | "PUBLISHED";
-  }) => {
-    setIsLoading(true);
+  const handleSubmit = async (data: ArticleFormData) => {
+    setIsSaving(true);
+    setErrorMessage("");
 
     try {
       const res = await fetch("/api/articles", {
@@ -71,46 +49,49 @@ export default function WritePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-
       const result = await res.json();
 
       if (!res.ok) {
-        alert(result.message || "기사 저장에 실패했습니다.");
+        setErrorMessage(result.message || "기사 저장에 실패했습니다.");
         return;
       }
 
-      // 저장 성공 → 기사 상세 페이지로 이동
-      const message = data.status === "PUBLISHED" ? "기사가 발행되었습니다!" : "임시저장되었습니다.";
-      alert(message);
-      router.push(`/articles/${result.data.id}`);
+      // 임시저장한 기사는 아직 공개되지 않아 상세 화면에서 볼 수 없으므로 홈으로 이동
+      if (data.status === "PUBLISHED") {
+        router.push(`/articles/${result.data.id}`);
+      } else {
+        router.push("/");
+      }
+      router.refresh();
     } catch {
-      alert("서버 오류가 발생했습니다.");
+      setErrorMessage("서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
-  // 권한 확인 중 로딩
-  if (isAuthChecking) {
+  // 권한을 확인하는 동안, 또는 자격이 없어 이동하는 동안 보여 줄 화면
+  if (isCheckingAuth || !user || !isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-400">권한 확인 중...</div>
+      <div className="flex items-center justify-center py-32">
+        <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+        <span className="sr-only">권한 확인 중</span>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10">
-      {/* 페이지 헤더 */}
+    <div className="max-w-4xl mx-auto px-4 py-8 sm:py-10">
       <div className="mb-8 pb-4 border-b border-gray-200">
         <h1 className="text-2xl font-bold text-gray-900">기사 작성</h1>
-        <p className="text-gray-500 text-sm mt-1">
+        <p className="text-gray-500 text-sm mt-1 break-keep">
           카테고리를 선택하고 기사를 작성하세요. 임시저장 후 나중에 발행할 수 있습니다.
         </p>
       </div>
 
-      {/* 에디터 컴포넌트 */}
-      <Editor onSubmit={handleSubmit} isLoading={isLoading} />
+      {errorMessage && <div className="alert-error mb-6">{errorMessage}</div>}
+
+      <ArticleEditor onSubmit={handleSubmit} isLoading={isSaving} />
     </div>
   );
 }

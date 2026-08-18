@@ -1,45 +1,36 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { findUserByEmail } from "@/backend/services/userService";
 import { createVerificationToken } from "@/backend/services/verificationService";
 import { sendVerificationEmail } from "@/backend/lib/email";
+import { ok, fail, serverError } from "@/backend/lib/apiResponse";
 
 // ====================================
-// 인증 코드 재발송 API
+// 인증 코드 다시 보내기 API
 // POST /api/auth/resend-verification
+// ------------------------------------
+// 메일이 오지 않았거나 10분이 지나 코드가 만료된 경우 사용합니다.
+// 새 코드를 발급하면 이전 코드는 즉시 사용할 수 없게 됩니다.
 // ====================================
 
-/**
- * 이메일 인증 코드 재발송
- * 이미 인증된 계정이면 무시
- */
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json();
 
-    if (!email) {
-      return NextResponse.json(
-        { success: false, message: "이메일을 입력해주세요." },
-        { status: 400 }
-      );
-    }
+    if (!email) return fail("이메일을 입력해주세요.", 400);
 
     const user = await findUserByEmail(email);
 
-    // 보안상 사용자 존재 여부를 외부에 노출하지 않음
+    // 가입되지 않은 이메일이거나 이미 인증을 마친 계정이어도
+    // "발송했다"고 똑같이 답합니다. (어떤 이메일이 가입되어 있는지 알아내는 것을 막기 위함)
     if (!user || user.emailVerified) {
-      return NextResponse.json({ success: true, message: "발송 완료" });
+      return ok(undefined, "인증 코드를 발송했습니다.");
     }
 
-    // 새 코드 발급 후 발송
     const code = await createVerificationToken(user.id);
     await sendVerificationEmail(email, user.name, code);
 
-    return NextResponse.json({ success: true, message: "인증 코드를 재발송했습니다." });
+    return ok(undefined, "인증 코드를 재발송했습니다.");
   } catch (error) {
-    console.error("[인증 코드 재발송 오류]", error);
-    return NextResponse.json(
-      { success: false, message: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return serverError("인증 코드 재발송", error);
   }
 }

@@ -1,101 +1,63 @@
-import { NextRequest, NextResponse } from "next/server";
-import { isAdmin, requireAuth } from "@/backend/middleware/auth";
+import { NextRequest } from "next/server";
+import { requireAuth, isAdmin } from "@/backend/middleware/auth";
+import { ok, fail, serverError, MESSAGES } from "@/backend/lib/apiResponse";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
 // ====================================
 // 이미지 업로드 API
 // POST /api/upload
-// 관리자만 업로드 가능
-// 업로드된 이미지는 /public/uploads/ 에 저장
+// ------------------------------------
+// 기사 썸네일 이미지를 서버에 저장합니다. (관리자만 사용 가능)
+// 저장 위치: public/uploads/ 폴더
+// 저장 이름: 업로드시각_원본파일명 (같은 이름 파일이 서로 덮어쓰지 않도록)
+// 저장 후 화면에서 쓸 수 있는 주소(/uploads/파일명)를 돌려줍니다.
 // ====================================
 
-// 허용하는 이미지 MIME 타입
+/** 업로드를 허용하는 이미지 형식 */
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
 
-// 파일 크기 제한 (5MB)
+/** 허용하는 최대 파일 크기 (5MB) */
 const MAX_SIZE = 5 * 1024 * 1024;
 
-/**
- * 이미지 파일 업로드 처리
- * multipart/form-data 형식으로 수신
- * 업로드 경로: /public/uploads/{타임스탬프}_{원본파일명}
- */
 export async function POST(request: NextRequest) {
   try {
-    // 인증 확인 (로그인 필요)
+    // 1) 관리자 확인
     const user = await requireAuth(request);
-    if (!user) {
-      return NextResponse.json(
-        { success: false, message: "로그인이 필요합니다." },
-        { status: 401 }
-      );
-    }
+    if (!user) return fail(MESSAGES.loginRequired, 401);
+    if (!isAdmin(user)) return fail("관리자만 이미지를 업로드할 수 있습니다.", 403);
 
-    if (!isAdmin(user)) {
-      return NextResponse.json(
-        { success: false, message: "관리자만 이미지를 업로드할 수 있습니다." },
-        { status: 403 }
-      );
-    }
-
-    // FormData에서 파일 추출
+    // 2) 전송된 파일 꺼내기
     const formData = await request.formData();
-    const file = formData.get("file") as File;
+    const file = formData.get("file");
 
-    if (!file) {
-      return NextResponse.json(
-        { success: false, message: "파일을 선택해주세요." },
-        { status: 400 }
-      );
+    if (!(file instanceof File)) {
+      return fail("파일을 선택해주세요.", 400);
     }
 
-    // 파일 타입 검증
+    // 3) 형식·크기 확인
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json(
-        { success: false, message: "JPG, PNG, WebP, GIF 형식만 업로드 가능합니다." },
-        { status: 400 }
-      );
+      return fail("JPG, PNG, WebP, GIF 형식만 업로드 가능합니다.", 400);
     }
-
-    // 파일 크기 검증
     if (file.size > MAX_SIZE) {
-      return NextResponse.json(
-        { success: false, message: "파일 크기는 5MB를 초과할 수 없습니다." },
-        { status: 400 }
-      );
+      return fail("파일 크기는 5MB를 초과할 수 없습니다.", 400);
     }
 
-    // 파일을 Buffer로 변환
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    // 업로드 디렉토리 생성 (없으면 생성)
+    // 4) 저장 폴더 준비 (없으면 만듦)
     const uploadDir = path.join(process.cwd(), "public", "uploads");
     await mkdir(uploadDir, { recursive: true });
 
-    // 고유한 파일명 생성 (타임스탬프 + 원본 파일명)
-    const timestamp = Date.now();
-    const originalName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_"); // 특수문자 제거
-    const fileName = `${timestamp}_${originalName}`;
-    const filePath = path.join(uploadDir, fileName);
+    // 5) 안전한 파일 이름 만들기
+    //    파일명에 한글·공백·특수문자가 있으면 주소가 깨질 수 있어 _ 로 바꿉니다.
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const fileName = `${Date.now()}_${safeName}`;
 
-    // 파일 저장
-    await writeFile(filePath, buffer);
+    // 6) 저장
+    const buffer = Buffer.from(await file.arrayBuffer());
+    await writeFile(path.join(uploadDir, fileName), buffer);
 
-    // 클라이언트에서 접근할 수 있는 URL 반환
-    const fileUrl = `/uploads/${fileName}`;
-
-    return NextResponse.json({
-      success: true,
-      message: "이미지가 업로드되었습니다.",
-      data: { url: fileUrl, fileName },
-    });
+    return ok({ url: `/uploads/${fileName}`, fileName }, "이미지가 업로드되었습니다.");
   } catch (error) {
-    console.error("[이미지 업로드 오류]", error);
-    return NextResponse.json(
-      { success: false, message: "이미지 업로드에 실패했습니다." },
-      { status: 500 }
-    );
+    return serverError("이미지 업로드", error);
   }
 }

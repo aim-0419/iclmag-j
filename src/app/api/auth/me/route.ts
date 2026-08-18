@@ -1,44 +1,25 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getAuthUser } from "@/backend/middleware/auth";
-import { findUserById } from "@/backend/services/userService";
+import { NextRequest } from "next/server";
+import { requireAuth } from "@/backend/middleware/auth";
+import { ok, fail, MESSAGES } from "@/backend/lib/apiResponse";
 
 // ====================================
-// 현재 로그인 사용자 정보 조회 API
+// 현재 로그인한 사람이 누구인지 알려주는 API
 // GET /api/auth/me
+// ------------------------------------
+// 화면 상단의 "OOO님 / 로그아웃" 표시, 기사 쓰기 버튼 노출 여부,
+// 마이페이지 접근 확인 등에 사용됩니다.
+// 데이터베이스에서 최신 정보를 가져오므로 관리자 승격 등이 바로 반영됩니다.
 // ====================================
 
-/**
- * 현재 로그인한 사용자 정보 반환
- * 헤더의 로그인 상태 확인, 기사 작성 권한 확인 등에 사용
- */
 export async function GET(request: NextRequest) {
-  // JWT 쿠키에서 사용자 정보 추출 및 검증
-  const tokenUser = await getAuthUser(request);
+  const user = await requireAuth(request);
 
-  if (!tokenUser) {
-    return NextResponse.json(
-      { success: false, message: "로그인이 필요합니다." },
-      { status: 401 }
-    );
-  }
+  if (!user) return fail(MESSAGES.loginRequired, 401);
 
-  // DB에서 최신 사용자 정보 조회 (역할 변경 등 반영)
-  const user = await findUserById(tokenUser.userId);
-
-  if (!user) {
-    return NextResponse.json(
-      { success: false, message: "사용자를 찾을 수 없습니다." },
-      { status: 404 }
-    );
-  }
-
-  return NextResponse.json({
-    success: true,
-    data: {
-      userId: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-    },
+  return ok({
+    userId: user.userId,
+    email: user.email,
+    name: user.name,
+    role: user.role,
   });
 }

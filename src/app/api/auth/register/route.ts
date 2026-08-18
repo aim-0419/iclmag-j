@@ -1,68 +1,51 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createUser, validateUserInput } from "@/backend/services/userService";
 import { createVerificationToken } from "@/backend/services/verificationService";
 import { sendVerificationEmail } from "@/backend/lib/email";
+import { ok, fail, serverError } from "@/backend/lib/apiResponse";
 
 // ====================================
 // 회원가입 API
 // POST /api/auth/register
-// 사용자 생성 후 이메일 인증 토큰 발급 및 발송
+// ------------------------------------
+// 이름·이메일·비밀번호를 받아 계정을 만들고,
+// 곧바로 6자리 인증 코드를 메일로 보냅니다. (코드는 10분간 유효)
+// 인증을 마치기 전에는 로그인할 수 없습니다.
 // ====================================
 
-/**
- * 회원가입 요청 처리
- * 이름, 이메일, 비밀번호를 받아 새 사용자 생성
- * 가입 후 인증 이메일 자동 발송 (24시간 유효)
- */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { name, email, password } = body;
+    const { name, email, password } = await request.json();
 
-    // 서버 측 입력값 유효성 검증
+    // 1) 입력값 확인 (화면에서도 확인하지만 서버에서 다시 검사)
     const errors = validateUserInput(email, password, name);
     if (errors.length > 0) {
-      return NextResponse.json(
-        { success: false, errors },
-        { status: 400 }
-      );
+      return fail(errors[0], 400, errors);
     }
 
-    // 사용자 생성 (이메일 중복 확인 포함)
+    // 2) 계정 생성 (이메일 중복이면 아래 catch 에서 처리)
     const user = await createUser(email, password, name);
 
-    // 이메일 인증 토큰 생성 (24시간 유효)
-    const token = await createVerificationToken(user.id);
-
-    // 인증 이메일 발송 (실패해도 가입은 완료 처리)
+    // 3) 인증 코드 발급 후 메일 발송
+    //    메일 서버 문제로 발송이 실패해도 가입 자체는 완료 처리하고,
+    //    사용자는 "인증 코드 다시 받기" 버튼으로 재발송할 수 있습니다.
+    const code = await createVerificationToken(user.id);
     try {
-      await sendVerificationEmail(email, name, token);
+      await sendVerificationEmail(email, name, code);
     } catch (emailError) {
       console.error("[인증 메일 발송 실패]", emailError);
-      // 이메일 발송 실패는 가입 자체를 막지 않음
     }
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: "회원가입이 완료되었습니다. 이메일로 발송된 인증 코드를 입력해주세요.",
-        data: { id: user.id, email: user.email, name: user.name },
-      },
-      { status: 201 }
+    return ok(
+      { id: user.id, email: user.email, name: user.name },
+      "회원가입이 완료되었습니다. 이메일로 발송된 인증 코드를 입력해주세요.",
+      201
     );
-  } catch (error: any) {
-    // 이메일 중복 등 비즈니스 로직 에러
-    if (error.message === "이미 사용 중인 이메일입니다.") {
-      return NextResponse.json(
-        { success: false, message: error.message },
-        { status: 409 }
-      );
+  } catch (error) {
+    // 이미 가입된 이메일인 경우
+    if (error instanceof Error && error.message === "이미 사용 중인 이메일입니다.") {
+      return fail(error.message, 409);
     }
-
-    console.error("[회원가입 오류]", error);
-    return NextResponse.json(
-      { success: false, message: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return serverError("회원가입", error);
   }
 }

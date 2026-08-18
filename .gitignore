@@ -8,15 +8,16 @@ node_modules/
 out/
 build/
 dist/
+*.tsbuildinfo
 
-# 환경변수 (민감 정보 - 절대 git에 올리지 않음)
+# 환경변수 (비밀번호 포함 - 절대 git 에 올리지 않음)
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# 업로드된 이미지 (선택적)
+# 업로드된 이미지 (서버에 직접 저장되므로 git 에는 포함하지 않음)
 public/uploads/
 
 # 캐시
