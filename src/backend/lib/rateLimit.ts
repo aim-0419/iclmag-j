@@ -61,12 +61,13 @@ export interface RateLimitResult {
 
 /**
  * 시도 횟수를 1 올리고, 제한을 넘었는지 확인합니다.
+ * 맨 아래 limitByIp 가 내부적으로 사용합니다.
  *
  * @param key      - 구분값 (예: "login:1.2.3.4")
  * @param limit    - 허용 횟수
  * @param windowMs - 기준 시간 (밀리초). 이 시간이 지나면 횟수가 초기화됩니다.
  */
-export function checkRateLimit(key: string, limit: number, windowMs: number): RateLimitResult {
+function checkRateLimit(key: string, limit: number, windowMs: number): RateLimitResult {
   const now = Date.now();
   cleanupExpired(now);
 

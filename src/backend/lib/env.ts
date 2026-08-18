@@ -85,7 +85,7 @@ export const JWT_SECRET = readJwtSecret();
 export const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 
 /** 실제 서비스 중인지 여부 (개발 중이면 false) */
-export const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 /**
  * 로그인 쿠키에 보안 옵션(secure)을 켤지 여부

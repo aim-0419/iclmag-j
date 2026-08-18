@@ -16,12 +16,12 @@ import { findUserById } from "@/backend/services/userService";
 // ====================================
 
 /**
- * 요청에서 로그인한 사용자 정보를 꺼냅니다. (증명서만 확인, 빠름)
- * 로그인 여부만 가볍게 알고 싶을 때 사용합니다.
+ * 요청에서 로그인한 사용자 정보를 꺼냅니다. (증명서만 확인, 데이터베이스 조회 없음)
+ * 아래 requireAuth 가 내부적으로 사용합니다.
  *
  * @returns 사용자 정보, 비로그인·만료 시 null
  */
-export async function getAuthUser(request: NextRequest): Promise<JWTPayload | null> {
+async function getAuthUser(request: NextRequest): Promise<JWTPayload | null> {
   // 브라우저 요청은 쿠키에, 외부 프로그램 요청은 Authorization 헤더에 토큰을 담습니다.
   const cookieToken = request.cookies.get("auth_token")?.value;
   const headerToken = request.headers.get("Authorization")?.replace("Bearer ", "");
